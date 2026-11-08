@@ -1,0 +1,661 @@
+{
+ "uid": "la-fm-long-chain",
+ "title": "Local Activity Lab \u00b7 row 9 \u00b7 One crash re-runs a chain of calls",
+ "description": "One crash re-runs five calls.",
+ "tags": [
+  "local-activity-lab"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "graphTooltip": 1,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "timepicker": {
+  "refresh_intervals": [
+   "5s",
+   "10s",
+   "30s",
+   "1m"
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#8AB8FF",
+    "name": "Scenario phases",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "phase",
+      "long-chain"
+     ],
+     "matchAny": false,
+     "limit": 300
+    }
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#E02F44",
+    "name": "Crashes and restarts",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "action",
+      "long-chain"
+     ],
+     "matchAny": false,
+     "limit": 100
+    }
+   }
+  ]
+ },
+ "links": [
+  {
+   "title": "Control page",
+   "type": "link",
+   "url": "http://localhost:8088",
+   "targetBlank": true,
+   "icon": "external link"
+  },
+  {
+   "title": "Local Activity Lab",
+   "type": "dashboards",
+   "tags": [
+    "local-activity-lab"
+   ],
+   "asDropdown": true,
+   "includeVars": false,
+   "keepTime": true
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "options": {
+    "mode": "markdown",
+    "content": "### One crash re-runs a chain of calls\n**Guide:** Failure modes: row 9  \u00b7  **Symptom:** One crash re-runs five calls.  \u00b7  **Cause:** Long chain of local activities in one workflow task, no checkpoint.  \u00b7  **Fix:** Put a regular activity or a durable step between groups; keep chains short.\n\n**What to watch:** API re-executions by step after each crash: all five steps re-run without checkpoints, only the last group with them.\n\n| # | Variant | Phase | Length | What changes |\n|---|---|---|---|---|\n| 1 | baseline | warm up | 30 s |  |\n| 2 | broken | 5 local calls, no checkpoint; crash worker-a | 60 s |  |\n| 3 | baseline | recover | 30 s |  |\n| 4 | fixed | checkpoint every 2 calls; crash worker-a | 60 s | A 1 ms timer after every 2 local calls completes the workflow task and persists their markers. |\n\nRun it from the [control page](http://localhost:8088). Blue regions mark phases; red markers are crashes and restarts."
+   },
+   "id": 1,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 7
+   }
+  },
+  {
+   "type": "state-timeline",
+   "title": "Phase",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "demo_scenario_variant{scenario=\"long-chain\"}",
+     "legendFormat": "{{scenario}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "#8E8E8E",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "idle",
+         "color": "#8E8E8E",
+         "index": 0
+        },
+        "1": {
+         "text": "baseline",
+         "color": "#3274D9",
+         "index": 1
+        },
+        "2": {
+         "text": "broken",
+         "color": "#E02F44",
+         "index": 2
+        },
+        "3": {
+         "text": "fixed",
+         "color": "#56A64B",
+         "index": 3
+        }
+       }
+      }
+     ],
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "rowHeight": 0.8,
+    "alignValue": "left",
+    "legend": {
+     "showLegend": false
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   },
+   "id": 2,
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 24,
+    "h": 3
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Calls re-executed after the crash, by step (per minute)",
+   "description": "Every call for an order+step that had already succeeded (answered from the idempotency store here, so no duplicates).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (step) (increase(api_reexecutions_total[1m]))",
+     "legendFormat": "{{step}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 2,
+      "fillOpacity": 70,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 3,
+   "gridPos": {
+    "x": 0,
+    "y": 10,
+    "w": 12,
+    "h": 9
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout end-to-end latency (caller's view)",
+   "description": "From the runner's StartWorkflow call to the workflow result.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"chain_.*\"}[30s])))",
+     "legendFormat": "p50 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"chain_.*\"}[30s])))",
+     "legendFormat": "p99 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 4,
+   "gridPos": {
+    "x": 12,
+    "y": 10,
+    "w": 12,
+    "h": 9
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Workflow task timeouts in sampled histories (per minute)",
+   "description": "Sampled workflows only (see the scenario's history sample rate).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (policy) (increase(demo_history_events_total{policy=~\"chain_.*\",kind=\"wft_timed_out\"}[1m]))",
+     "legendFormat": "{{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 2,
+      "fillOpacity": 70,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 5,
+   "gridPos": {
+    "x": 0,
+    "y": 19,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Per sampled workflow (from history)",
+   "description": "The runner fetches the history of a sample of completed workflows and counts events. A heartbeat is a WorkflowTaskCompleted followed directly by WorkflowTaskScheduled.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (policy) (rate(demo_history_events_total{policy=~\"chain_.*\",kind=\"timer\"}[1m])) / sum by (policy) (rate(demo_history_sampled_total{policy=~\"chain_.*\"}[1m]))",
+     "legendFormat": "timers \u00b7 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "sum by (policy) (rate(demo_history_events_total{policy=~\"chain_.*\",kind=\"wft_completed\"}[1m])) / sum by (policy) (rate(demo_history_sampled_total{policy=~\"chain_.*\"}[1m]))",
+     "legendFormat": "workflow tasks \u00b7 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     },
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 6,
+   "gridPos": {
+    "x": 8,
+    "y": 19,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Workers running",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (process) (demo_fleet_workers)",
+     "legendFormat": "{{process}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "sum(demo_fleet_workers)",
+     "legendFormat": "total",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"min_workers\"})",
+     "legendFormat": "sized minimum",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"max_workers\"})",
+     "legendFormat": "autoscaler max",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "D"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     },
+     "decimals": 0
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "sized minimum"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#FF9830"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "autoscaler max"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#8E8E8E"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 7,
+   "gridPos": {
+    "x": 16,
+    "y": 19,
+    "w": 8,
+    "h": 8
+   }
+  }
+ ]
+}

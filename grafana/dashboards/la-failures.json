@@ -1,0 +1,414 @@
+{
+ "uid": "la-failures",
+ "title": "Local Activity Lab \u00b7 Failure modes",
+ "description": "",
+ "tags": [
+  "local-activity-lab"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "graphTooltip": 1,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5s",
+ "time": {
+  "from": "now-1h",
+  "to": "now"
+ },
+ "timepicker": {
+  "refresh_intervals": [
+   "5s",
+   "10s",
+   "30s",
+   "1m"
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#8AB8FF",
+    "name": "Scenario phases",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "phase"
+     ],
+     "matchAny": false,
+     "limit": 300
+    }
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#E02F44",
+    "name": "Crashes and restarts",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "action"
+     ],
+     "matchAny": false,
+     "limit": 100
+    }
+   }
+  ]
+ },
+ "links": [
+  {
+   "title": "Control page",
+   "type": "link",
+   "url": "http://localhost:8088",
+   "targetBlank": true,
+   "icon": "external link"
+  },
+  {
+   "title": "Local Activity Lab",
+   "type": "dashboards",
+   "tags": [
+    "local-activity-lab"
+   ],
+   "asDropdown": true,
+   "includeVars": false,
+   "keepTime": true
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "options": {
+    "mode": "markdown",
+    "content": "### Failure modes and anti-patterns\nOne dashboard per row of the guide's table. Start a scenario from the [control page](http://localhost:8088); each one runs the broken configuration, recovers, then runs the fix.\n\n| Scenario | Symptom | Cause | Fix |\n|---|---|---|---|\n| [API slowdown holds workflow tasks open](/d/la-fm-api-slowdown) | Workflow task latency and schedule-to-start rise together; queries (and signals/updates) lag. | API slowdown keeps workflow tasks open; workflow task slots fill. | Tight ScheduleToClose; circuit breaker in the activity; fail fast to a fallback. |\n| [Local activity slots exhausted](/d/la-fm-slot-exhaustion) | Local activities pile up waiting for a slot. | Local activity slots sized from average latency, not Little's law at p99 and burst. | Re-derive slots from Little's law; set ScheduleToStart so starvation fails visibly (Java supports it for local activities). |\n| [Slow call triggers workflow task heartbeats](/d/la-fm-wft-heartbeat) | History shows extra workflow task completions mid-call; queries wait ~8 s. | A call passed 80% of the workflow task timeout (8 s of 10 s). | Shorten the call or move it to a regular activity. |\n| [Pod loss: ~10 s latency spike](/d/la-fm-pod-loss) | Latency spike of ~10 s after a deploy or pod loss. | Worker died mid-task; the workflow waits out the workflow task timeout before another worker retries it. | Graceful shutdown that drains workflow tasks (WorkerFactory.shutdown() + awaitTermination); keep the default task timeout. |\n| [Duplicate charges after a crash](/d/la-fm-duplicates) | Duplicate charges, emails or records. | Workflow task retry re-ran completed local activities. | Idempotency key per workflow ID and step; dedupe on the API side. |\n| [429s after the fleet scales out](/d/la-fm-fleet-scale-out) | API returns 429 only at some times of day. | Fleet scaled out past the size the per-worker cap assumed. | Size caps for the maximum fleet, or use a shared limiter. |\n| [Outage turns into a retry storm](/d/la-fm-retry-storm) | API outage multiplies its own load. | Every workflow retrying in process at short backoffs. | MaximumAttempts cap, circuit breaker, non-retryable errors for client faults. |\n| [Retry-After above the local retry threshold](/d/la-fm-long-backoff) | Many timers and workflow tasks per workflow. | Backoffs or Retry-After above the local retry threshold (Java default: 3 x workflow task timeout = 30 s). | Keep backoffs under the threshold; hand long waits to a regular activity. |\n| [One crash re-runs a chain of calls](/d/la-fm-long-chain) | One crash re-runs five calls. | Long chain of local activities in one workflow task, no checkpoint. | Put a regular activity or a durable step between groups; keep chains short. |\n| [Resource-based tuner admits too many calls](/d/la-fm-resource-tuner) | Resource-based tuner admits far more concurrent calls than the API allows. | I/O-bound calls don't move JVM CPU or heap, so the supplier keeps issuing slots. | Fixed-size (or custom) slot supplier for local activities. |\n\n_Not simulated:_ non-determinism from changing local activity code or options without versioning (a deployment issue)."
+   },
+   "id": 1,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 14
+   }
+  },
+  {
+   "type": "state-timeline",
+   "title": "Scenarios over time",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "demo_scenario_variant",
+     "legendFormat": "{{scenario}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "#8E8E8E",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "idle",
+         "color": "#8E8E8E",
+         "index": 0
+        },
+        "1": {
+         "text": "baseline",
+         "color": "#3274D9",
+         "index": 1
+        },
+        "2": {
+         "text": "broken",
+         "color": "#E02F44",
+         "index": 2
+        },
+        "3": {
+         "text": "fixed",
+         "color": "#56A64B",
+         "index": 3
+        }
+       }
+      }
+     ],
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "rowHeight": 0.8,
+    "alignValue": "left",
+    "legend": {
+     "showLegend": false
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   },
+   "id": 2,
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 24,
+    "h": 6
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout latency, all traffic",
+   "description": "From the runner's StartWorkflow call to the workflow result.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(demo_workflow_e2e_seconds_bucket{policy=~\".*\"}[30s])))",
+     "legendFormat": "p50",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(demo_workflow_e2e_seconds_bucket{policy=~\".*\"}[30s])))",
+     "legendFormat": "p99",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 3,
+   "gridPos": {
+    "x": 0,
+    "y": 20,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout outcomes per second",
+   "description": "completed \u00b7 declined (invalid card, not retried) \u00b7 deferred (fallback answered fast) \u00b7 failed (budget exhausted) \u00b7 error",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (status) (rate(demo_workflow_results_total{policy=~\".*\"}[30s]))",
+     "legendFormat": "{{status}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 25,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "completed"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#56A64B"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "deferred"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#FF9830"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "failed"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "declined"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#A352CC"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "error"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#8F3BB8"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 4,
+   "gridPos": {
+    "x": 12,
+    "y": 20,
+    "w": 12,
+    "h": 8
+   }
+  }
+ ]
+}

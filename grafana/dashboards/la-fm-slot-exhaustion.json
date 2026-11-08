@@ -1,0 +1,884 @@
+{
+ "uid": "la-fm-slot-exhaustion",
+ "title": "Local Activity Lab \u00b7 row 2 \u00b7 Local activity slots exhausted",
+ "description": "Local activities pile up waiting for a slot.",
+ "tags": [
+  "local-activity-lab"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "graphTooltip": 1,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "timepicker": {
+  "refresh_intervals": [
+   "5s",
+   "10s",
+   "30s",
+   "1m"
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#8AB8FF",
+    "name": "Scenario phases",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "phase",
+      "slot-exhaustion"
+     ],
+     "matchAny": false,
+     "limit": 300
+    }
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#E02F44",
+    "name": "Crashes and restarts",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "action",
+      "slot-exhaustion"
+     ],
+     "matchAny": false,
+     "limit": 100
+    }
+   }
+  ]
+ },
+ "links": [
+  {
+   "title": "Control page",
+   "type": "link",
+   "url": "http://localhost:8088",
+   "targetBlank": true,
+   "icon": "external link"
+  },
+  {
+   "title": "Local Activity Lab",
+   "type": "dashboards",
+   "tags": [
+    "local-activity-lab"
+   ],
+   "asDropdown": true,
+   "includeVars": false,
+   "keepTime": true
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "options": {
+    "mode": "markdown",
+    "content": "### Local activity slots exhausted\n**Guide:** Failure modes: row 2  \u00b7  **Symptom:** Local activities pile up waiting for a slot.  \u00b7  **Cause:** Local activity slots sized from average latency, not Little's law at p99 and burst.  \u00b7  **Fix:** Re-derive slots from Little's law; set ScheduleToStart so starvation fails visibly (Java supports it for local activities).\n\n**What to watch:** Local activity slots available hits 0; end-to-end LA latency (schedule to completion) diverges from execution latency; with ScheduleToStart the overflow fails in 500 ms instead of waiting.\n\n| # | Variant | Phase | Length | What changes |\n|---|---|---|---|---|\n| 1 | broken | 1 slot per worker, API 3.5x slower | 120 s | Little's law: ~8 calls/s/worker x ~165 ms = 1.3 concurrent > 1 slot. ScheduleToClose 30 s, no ScheduleToStart: the wait is hidden. |\n| 2 | baseline | recover | 45 s |  |\n| 3 | fixed | sized slots + ScheduleToStart 500 ms, API 3.5x slower | 120 s | Slots = API concurrency / max workers; ScheduleToClose 2 s; ScheduleToStart 500 ms. |\n\nRun it from the [control page](http://localhost:8088). Blue regions mark phases; red markers are crashes and restarts."
+   },
+   "id": 1,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 7
+   }
+  },
+  {
+   "type": "state-timeline",
+   "title": "Phase",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "demo_scenario_variant{scenario=\"slot-exhaustion\"}",
+     "legendFormat": "{{scenario}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "#8E8E8E",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "idle",
+         "color": "#8E8E8E",
+         "index": 0
+        },
+        "1": {
+         "text": "baseline",
+         "color": "#3274D9",
+         "index": 1
+        },
+        "2": {
+         "text": "broken",
+         "color": "#E02F44",
+         "index": 2
+        },
+        "3": {
+         "text": "fixed",
+         "color": "#56A64B",
+         "index": 3
+        }
+       }
+      }
+     ],
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "rowHeight": 0.8,
+    "alignValue": "left",
+    "legend": {
+     "showLegend": false
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   },
+   "id": 2,
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 24,
+    "h": 3
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Local activity slots available (lowest worker)",
+   "description": "Sustained 0 available = slot exhaustion (fixed-size suppliers only).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "min(temporal_worker_task_slots_available{worker_type=\"LocalActivityWorker\"})",
+     "legendFormat": "min available",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "max(temporal_worker_task_slots_used{worker_type=\"LocalActivityWorker\"})",
+     "legendFormat": "max used",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "max(demo_worker_config{setting=\"la_slots\"})",
+     "legendFormat": "slot cap per worker",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "slot cap per worker"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "min available"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 3,
+   "gridPos": {
+    "x": 0,
+    "y": 10,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Local activity latency: execution vs end-to-end",
+   "description": "The gap between end-to-end and execution is time spent waiting: for a slot, a rate-limiter token, or retry backoff.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(temporal_local_activity_execution_latency_seconds_bucket[30s])))",
+     "legendFormat": "p99 execution (one attempt)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(temporal_local_activity_succeed_endtoend_latency_seconds_bucket[30s])))",
+     "legendFormat": "p99 end-to-end (schedule to success)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(temporal_local_activity_succeed_endtoend_latency_seconds_bucket[30s])))",
+     "legendFormat": "p50 end-to-end",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"start_to_close_seconds\"})",
+     "legendFormat": "StartToClose (sized)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "D"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"schedule_to_close_seconds\"})",
+     "legendFormat": "ScheduleToClose (sized)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "E"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "StartToClose (sized)"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#FF9830"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "ScheduleToClose (sized)"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 4,
+   "gridPos": {
+    "x": 12,
+    "y": 10,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout outcomes per second",
+   "description": "completed \u00b7 declined (invalid card, not retried) \u00b7 deferred (fallback answered fast) \u00b7 failed (budget exhausted) \u00b7 error",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (status) (rate(demo_workflow_results_total{policy=~\"slots_.*\"}[30s]))",
+     "legendFormat": "{{status}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 25,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "completed"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#56A64B"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "deferred"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#FF9830"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "failed"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "declined"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#A352CC"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "error"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#8F3BB8"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 5,
+   "gridPos": {
+    "x": 0,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout end-to-end latency (caller's view)",
+   "description": "From the runner's StartWorkflow call to the workflow result.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"slots_.*\"}[30s])))",
+     "legendFormat": "p50 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"slots_.*\"}[30s])))",
+     "legendFormat": "p99 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 6,
+   "gridPos": {
+    "x": 8,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Workflow task execution latency (local activity time included)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(temporal_workflow_task_execution_latency_seconds_bucket[30s])))",
+     "legendFormat": "p50",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(temporal_workflow_task_execution_latency_seconds_bucket[30s])))",
+     "legendFormat": "p99",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"heartbeat_point_seconds\"})",
+     "legendFormat": "heartbeat point (80% of 10 s)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "heartbeat point (80% of 10 s)"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 7,
+   "gridPos": {
+    "x": 16,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  }
+ ]
+}

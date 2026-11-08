@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'lab'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    temporalVersion = '1.40.0' // latest Temporal Java SDK (2026-09-29)
+}
+
+dependencies {
+    implementation "io.temporal:temporal-sdk:${temporalVersion}"
+    runtimeOnly 'org.slf4j:slf4j-simple:1.7.36' // matches the SDK's slf4j-api 1.7.36
+
+    testImplementation "io.temporal:temporal-testing:${temporalVersion}"
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21 // virtual threads
+    options.encoding = 'UTF-8'
+}
+
+application {
+    mainClass = 'lab.Main'
+    applicationName = 'lab'
+}
+
+test {
+    testLogging { events 'failed'; exceptionFormat 'full' }
+}

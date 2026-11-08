@@ -1,0 +1,683 @@
+{
+ "uid": "la-fm-wft-heartbeat",
+ "title": "Local Activity Lab \u00b7 row 3 \u00b7 Slow call triggers workflow task heartbeats",
+ "description": "History shows extra workflow task completions mid-call; queries wait ~8 s.",
+ "tags": [
+  "local-activity-lab"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "graphTooltip": 1,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "timepicker": {
+  "refresh_intervals": [
+   "5s",
+   "10s",
+   "30s",
+   "1m"
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#8AB8FF",
+    "name": "Scenario phases",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "phase",
+      "wft-heartbeat"
+     ],
+     "matchAny": false,
+     "limit": 300
+    }
+   },
+   {
+    "datasource": {
+     "type": "datasource",
+     "uid": "grafana"
+    },
+    "enable": true,
+    "iconColor": "#E02F44",
+    "name": "Crashes and restarts",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "action",
+      "wft-heartbeat"
+     ],
+     "matchAny": false,
+     "limit": 100
+    }
+   }
+  ]
+ },
+ "links": [
+  {
+   "title": "Control page",
+   "type": "link",
+   "url": "http://localhost:8088",
+   "targetBlank": true,
+   "icon": "external link"
+  },
+  {
+   "title": "Local Activity Lab",
+   "type": "dashboards",
+   "tags": [
+    "local-activity-lab"
+   ],
+   "asDropdown": true,
+   "includeVars": false,
+   "keepTime": true
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "options": {
+    "mode": "markdown",
+    "content": "### Slow call triggers workflow task heartbeats\n**Guide:** Failure modes: row 3  \u00b7  **Symptom:** History shows extra workflow task completions mid-call; queries wait ~8 s.  \u00b7  **Cause:** A call passed 80% of the workflow task timeout (8 s of 10 s).  \u00b7  **Fix:** Shorten the call or move it to a regular activity.\n\n**What to watch:** Workflow task heartbeats per workflow and query latency for the risk-check flow; both drop when risk runs as a regular activity.\n\n| # | Variant | Phase | Length | What changes |\n|---|---|---|---|---|\n| 1 | broken | 10 s risk check as a local activity | 120 s | Risk vendor p50 9 s. The SDK heartbeats the workflow task at 8 s (WORKFLOW_TASK_HEARTBEAT_COEFFICIENT = 4/5). |\n| 2 | baseline | recover | 30 s |  |\n| 3 | fixed | risk check as a regular activity | 120 s | The workflow task completes right after scheduling the activity; queries are answered immediately. |\n\nRun it from the [control page](http://localhost:8088). Blue regions mark phases; red markers are crashes and restarts."
+   },
+   "id": 1,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 7
+   }
+  },
+  {
+   "type": "state-timeline",
+   "title": "Phase",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "demo_scenario_variant{scenario=\"wft-heartbeat\"}",
+     "legendFormat": "{{scenario}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "#8E8E8E",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "idle",
+         "color": "#8E8E8E",
+         "index": 0
+        },
+        "1": {
+         "text": "baseline",
+         "color": "#3274D9",
+         "index": 1
+        },
+        "2": {
+         "text": "broken",
+         "color": "#E02F44",
+         "index": 2
+        },
+        "3": {
+         "text": "fixed",
+         "color": "#56A64B",
+         "index": 3
+        }
+       }
+      }
+     ],
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "rowHeight": 0.8,
+    "alignValue": "left",
+    "legend": {
+     "showLegend": false
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   },
+   "id": 2,
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 24,
+    "h": 3
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Query latency (status query 300 ms after start)",
+   "description": "Queries (like signals and updates) wait while a workflow task is open on a worker.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le, policy) (rate(demo_query_latency_seconds_bucket{policy=~\"heartbeat_.*\"}[30s])))",
+     "legendFormat": "p50 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le, policy) (rate(demo_query_latency_seconds_bucket{policy=~\"heartbeat_.*\"}[30s])))",
+     "legendFormat": "p99 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 3,
+   "gridPos": {
+    "x": 0,
+    "y": 10,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Per sampled workflow (from history)",
+   "description": "The runner fetches the history of a sample of completed workflows and counts events. A heartbeat is a WorkflowTaskCompleted followed directly by WorkflowTaskScheduled.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (policy) (rate(demo_history_events_total{policy=~\"heartbeat_.*\",kind=\"wft_heartbeat\"}[1m])) / sum by (policy) (rate(demo_history_sampled_total{policy=~\"heartbeat_.*\"}[1m]))",
+     "legendFormat": "workflow task heartbeats \u00b7 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "sum by (policy) (rate(demo_history_events_total{policy=~\"heartbeat_.*\",kind=\"wft_completed\"}[1m])) / sum by (policy) (rate(demo_history_sampled_total{policy=~\"heartbeat_.*\"}[1m]))",
+     "legendFormat": "workflow tasks \u00b7 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "sum by (policy) (rate(demo_history_events_total{policy=~\"heartbeat_.*\",kind=\"activity_scheduled\"}[1m])) / sum by (policy) (rate(demo_history_sampled_total{policy=~\"heartbeat_.*\"}[1m]))",
+     "legendFormat": "regular activities \u00b7 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     },
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 4,
+   "gridPos": {
+    "x": 12,
+    "y": 10,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Checkout end-to-end latency (caller's view)",
+   "description": "From the runner's StartWorkflow call to the workflow result.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"heartbeat_.*\"}[30s])))",
+     "legendFormat": "p50 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le, policy) (rate(demo_workflow_e2e_seconds_bucket{policy=~\"heartbeat_.*\"}[30s])))",
+     "legendFormat": "p99 {{policy}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 5,
+   "gridPos": {
+    "x": 0,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Workflow task execution latency (local activity time included)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(temporal_workflow_task_execution_latency_seconds_bucket[30s])))",
+     "legendFormat": "p50",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(temporal_workflow_task_execution_latency_seconds_bucket[30s])))",
+     "legendFormat": "p99",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    },
+    {
+     "expr": "max(demo_sizing_planned{quantity=\"heartbeat_point_seconds\"})",
+     "legendFormat": "heartbeat point (80% of 10 s)",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "heartbeat point (80% of 10 s)"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 6,
+   "gridPos": {
+    "x": 8,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Local activity slots used per worker",
+   "description": "temporal_worker_task_slots_used{worker_type=\"LocalActivityWorker\"}. With the resource-based tuner the configured cap does not apply.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "max by (worker_id) (temporal_worker_task_slots_used{worker_type=\"LocalActivityWorker\"})",
+     "legendFormat": "used {{worker_id}}",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A"
+    },
+    {
+     "expr": "max(demo_worker_config{setting=\"la_slots\"})",
+     "legendFormat": "slot cap per worker",
+     "range": true,
+     "instant": false,
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 2,
+      "fillOpacity": 8,
+      "showPoints": "never",
+      "spanNulls": true,
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisSoftMin": 0,
+      "lineInterpolation": "linear"
+     },
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "slot cap per worker"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#E02F44"
+        }
+       },
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 2
+       },
+       {
+        "id": "custom.stacking",
+        "value": {
+         "mode": "none",
+         "group": "A"
+        }
+       },
+       {
+        "id": "custom.drawStyle",
+        "value": "line"
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          6
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 7,
+   "gridPos": {
+    "x": 16,
+    "y": 18,
+    "w": 8,
+    "h": 8
+   }
+  }
+ ]
+}

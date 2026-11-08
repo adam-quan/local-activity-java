@@ -1,0 +1,106 @@
+name: local-activity-lab-java
+
+# Java SDK 1.40.0 edition. Everything the demo needs: the simplest possible Temporal cluster (the
+# single-process dev server with in-memory SQLite), a mock payments API, a
+# shared limiter, two worker processes ("pods") hosting the virtual worker
+# fleet, the scenario runner, Prometheus and Grafana.
+
+x-app: &app
+  build: .
+  image: local-activity-lab-java:latest
+  restart: unless-stopped
+  environment: &env
+    SCALE: ${SCALE:-0.2}
+    TEMPORAL_ADDRESS: temporal:7233
+    API_URL: http://payments-api:8080
+    LIMITER_URL: http://limiter:8090
+    JAVA_OPTS: -XX:+UseZGC -XX:MaxRAMPercentage=60 -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
+
+services:
+  temporal:
+    image: temporalio/temporal:1.10.0
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--ui-ip", "0.0.0.0", "--metrics-port", "9233"]
+    ports:
+      - "7233:7233"   # gRPC
+      - "8233:8233"   # Web UI
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "localhost:7233"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+
+  payments-api:
+    <<: *app
+    command: ["api"]
+    ports: ["8080:8080"]
+
+  limiter:
+    <<: *app
+    command: ["limiter"]
+
+  worker-a:
+    <<: *app
+    command: ["worker"]
+    environment:
+      <<: *env
+      PROCESS_NAME: worker_a
+      WORKERS: "4"
+    depends_on:
+      temporal: {condition: service_healthy}
+    stop_grace_period: 20s   # > awaitTermination bound (15 s) so SIGTERM can drain
+
+  worker-b:
+    <<: *app
+    command: ["worker"]
+    environment:
+      <<: *env
+      PROCESS_NAME: worker_b
+      WORKERS: "4"
+    depends_on:
+      temporal: {condition: service_healthy}
+    stop_grace_period: 20s
+
+  runner:
+    <<: *app
+    command: ["runner"]
+    environment:
+      <<: *env
+      WORKER_URLS: worker-a=http://worker-a:8081,worker-b=http://worker-b:8081
+      GRAFANA_URL: http://grafana:3000
+      GRAFANA_PUBLIC_URL: http://localhost:3000
+      TEMPORAL_UI_URL: http://localhost:8233
+    ports: ["8088:8088"]
+    depends_on:
+      temporal: {condition: service_healthy}
+      payments-api: {condition: service_started}
+      limiter: {condition: service_started}
+      worker-a: {condition: service_started}
+      worker-b: {condition: service_started}
+      grafana: {condition: service_started}
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=1d"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/la-sizing.json
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+    restart: unless-stopped

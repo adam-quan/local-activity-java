@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 2s       # short, so 1-2 minute scenario phases resolve clearly
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: workers       # Java SDK metrics (tally -> custom Prometheus reporter) + demo_* worker metrics
+    static_configs:
+      - targets: ["worker-a:9090", "worker-b:9090"]
+  - job_name: payments-api  # api_* metrics: requests, rejections, in-flight, duplicates
+    static_configs:
+      - targets: ["payments-api:8080"]
+  - job_name: limiter
+    static_configs:
+      - targets: ["limiter:8090"]
+  - job_name: runner        # demo_* metrics: load, outcomes, query latency, history samples, phases
+    static_configs:
+      - targets: ["runner:8088"]
+  - job_name: temporal-server
+    static_configs:
+      - targets: ["temporal:9233"]

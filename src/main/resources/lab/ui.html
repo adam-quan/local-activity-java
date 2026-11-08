@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Activity Lab</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--fg:#1b1b1a;--muted:#62625e;--rule:#e2e2de;--accent:#2f6fde;--broken:#c8372d;--fixed:#2e8a4e;--baseline:#5b6b7f;--chip:#efefec;--code:#f1f1ee}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1e;--fg:#ececea;--muted:#a3a39e;--rule:#343432;--accent:#6b9cf2;--broken:#ef6b61;--fixed:#5cc282;--baseline:#93a3b8;--chip:#2a2a29;--code:#2a2a29}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 80px}
+h1{font-size:1.6rem;margin:0}
+h2{font-size:1.1rem;margin:28px 0 10px}
+a{color:var(--accent)}
+.sub{color:var(--muted);margin:4px 0 0}
+.top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.links a{margin-left:14px;font-weight:600;text-decoration:none}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px 18px}
+.status{margin-top:18px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.status .what{font-weight:600}
+.status .note{color:var(--muted);font-size:.92rem}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:10px;grid-column:1/-1}
+.bar>div{height:100%;background:var(--accent);width:0;transition:width .5s}
+button{font:inherit;font-weight:600;border:1px solid var(--rule);background:var(--card);color:var(--fg);border-radius:7px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+.chip{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.02em;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--muted);text-transform:uppercase}
+.chip.broken{color:#fff;background:var(--broken)}.chip.fixed{color:#fff;background:var(--fixed)}.chip.baseline{color:#fff;background:var(--baseline)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.sc h3{margin:6px 0 4px;font-size:1.02rem}
+.sc .guide{color:var(--muted);font-size:.8rem}
+.sc dl{margin:8px 0;font-size:.88rem;display:grid;grid-template-columns:auto 1fr;gap:3px 10px}
+.sc dt{color:var(--muted);font-weight:600}.sc dd{margin:0}
+.steps{display:flex;gap:4px;margin:10px 0;flex-wrap:wrap}
+.steps span{font-size:.72rem;padding:2px 6px;border-radius:5px;background:var(--chip);color:var(--muted)}
+.steps span.broken{box-shadow:inset 3px 0 var(--broken)}.steps span.fixed{box-shadow:inset 3px 0 var(--fixed)}.steps span.baseline{box-shadow:inset 3px 0 var(--baseline)}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
+.muted{color:var(--muted)}
+.err{color:var(--broken);font-size:.85rem}
+.wide{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Local Activity Lab</h1>
+      <p class="sub">The guide's worked sizing example and failure modes, running against a real Temporal dev server (Java SDK).</p>
+    </div>
+    <div class="links" id="links"></div>
+  </div>
+
+  <div class="card status">
+    <div>
+      <div><span class="chip" id="variant">idle</span> <span class="what" id="what">Loading…</span></div>
+      <div class="note" id="note"></div>
+      <div class="err" id="err"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="pause">Pause load</button>
+      <button id="stop">Stop scenario</button>
+    </div>
+    <div class="bar"><div id="bar"></div></div>
+  </div>
+
+  <h2>Worked sizing example at this scale</h2>
+  <div class="card wide"><table id="plan"></table></div>
+
+  <h2>Scenarios</h2>
+  <p class="muted" style="margin-top:-4px">Each scenario runs its broken configuration, recovers, then runs the fix. Phases are annotated on every Grafana panel.</p>
+  <div class="grid" id="scenarios"></div>
+</main>
+<script>
+let info=null, state=null;
+const $=id=>document.getElementById(id);
+const fmt=(v,d=0)=>Number(v).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
+const ms=ns=>ns/1e6;
+function dashURL(uid, from){
+  const f = from ? (new Date(from).getTime()-60000) : 'now-30m';
+  return `${info.grafana}/d/${uid}?from=${f}&to=now&refresh=5s`;
+}
+function planRows(p){
+  const s=p.scale;
+  return [
+    ['Workload', `300 × ${s} checkouts/s, 2 calls each`, fmt(p.workflows_per_sec,1)+' wf/s'],
+    ['API limits', `1,000 × ${s} req/s, 200 × ${s} concurrent`, `${fmt(p.api_rate_limit)} req/s · ${p.api_concurrency} conc`],
+    ['API calls per second', '300 × 2, plus ~5% retries', fmt(p.api_calls_per_sec,1)+' req/s'],
+    ['Local activity slots per worker', 'connections ÷ 10 max workers', p.la_slots_per_worker],
+    ['Per-worker rate limit', 'rate limit ÷ 10 max workers', fmt(p.la_rate_per_worker,1)+' req/s'],
+    ['Minimum workers', 'calls ÷ (rate × 80% headroom), rounded up', `${p.min_workers} (at ${p.min_workers-2}, fleet cap ${fmt(p.fleet_rate_cap_below_min)} < ${fmt(p.api_calls_per_sec)})`],
+    ['Calls per worker at minimum fleet', 'calls ÷ minimum workers', fmt(p.calls_per_worker_at_min,1)+' req/s'],
+    ['Peak concurrent calls per worker', 'calls per worker × p99 (150 ms)', `${fmt(p.peak_concurrent_per_worker,1)} (≤ ${p.la_slots_per_worker} slots)`],
+    ['Workflow tasks per second per worker', 'guide assumes ~2 per workflow (Go usually needs 1)', fmt(p.wft_per_sec_per_worker,1)],
+    ['Concurrent workflow tasks per worker', 'WFT/s × ~0.3 s', `${fmt(p.concurrent_wft_per_worker,1)} (set ${p.wft_slots_per_worker} slots)`],
+    ['Per-attempt timeout', '~3× p99', 'StartToClose '+ms(p.start_to_close)+' ms'],
+    ['Call budget', '4 attempts, 100/200/400 ms backoff', 'ScheduleToClose '+ms(p.schedule_to_close)/1000+' s'],
+    ['Worst-case workflow task', '2 calls × 2 s', `${ms(p.worst_case_wft)/1000} s, under the ${ms(p.heartbeat_point)/1000} s heartbeat point`],
+    ['HTTP pool per worker', '= local activity slots', p.http_pool_per_worker+' connections'],
+  ];
+}
+function render(){
+  if(!info) return;
+  $('links').innerHTML = `<a href="${info.grafana}/d/la-sizing" target="_blank">Sizing dashboard</a><a href="${info.grafana}/d/la-failures" target="_blank">Failure modes</a><a href="${info.grafana}/d/la-observability" target="_blank">Observability</a><a href="${info.temporal_ui}" target="_blank">Temporal UI</a>`;
+  $('plan').innerHTML = '<tr><th>Quantity</th><th>Calculation</th><th class="num">At SCALE '+info.plan.scale+'</th></tr>' +
+    planRows(info.plan).map(r=>`<tr><td>${r[0]}</td><td class="muted">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+  $('scenarios').innerHTML = info.scenarios.map(s=>`
+    <div class="card sc">
+      <div class="guide">${s.guide}</div>
+      <h3>${s.title}</h3>
+      <dl><dt>Symptom</dt><dd>${s.symptom}</dd><dt>Cause</dt><dd>${s.cause}</dd><dt>Fix</dt><dd>${s.fix}</dd><dt>Watch</dt><dd>${s.watch}</dd></dl>
+      <div class="steps">${s.steps.map(p=>`<span class="${p.variant}" title="${(p.note||'').replace(/"/g,'&quot;')}">${p.name} · ${Math.round(p.seconds)}s</span>`).join('')}</div>
+      <div class="row"><span class="muted">${Math.round(s.total_seconds/60*10)/10} min</span>
+        <span><a href="${dashURL(s.dashboard, state && state.scenario===s.id ? state.started : null)}" target="_blank">Dashboard</a>&nbsp;
+        <button class="primary" data-run="${s.id}">${state && state.scenario===s.id ? 'Restart' : 'Run'}</button></span></div>
+    </div>`).join('');
+  document.querySelectorAll('[data-run]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true; await fetch('/api/run?scenario='+b.dataset.run,{method:'POST'}); poll();
+    const s=info.scenarios.find(x=>x.id===b.dataset.run); window.open(dashURL(s.dashboard, new Date()), '_blank');
+  });
+}
+function renderState(){
+  if(!state) return;
+  const v=state.variant||'baseline';
+  $('variant').className='chip '+v; $('variant').textContent = state.scenario==='idle' ? 'idle' : v;
+  const sc = info && info.scenarios.find(s=>s.id===state.scenario);
+  $('what').textContent = state.scenario==='idle' ? `Steady state — ${state.phase}` : `${sc?sc.title:state.scenario} — phase ${state.phase_index}/${state.phases}: ${state.phase}`;
+  $('note').textContent = state.note||'';
+  $('err').textContent = state.last_error||'';
+  $('pause').textContent = state.paused ? 'Resume load' : 'Pause load';
+  $('stop').disabled = state.scenario==='idle';
+  if(sc && state.phase_ends){
+    const end=new Date(state.phase_ends).getTime(), total=sc.steps[state.phase_index-1].seconds*1000;
+    $('bar').style.width = Math.min(100, Math.max(0, 100-(end-Date.now())/total*100))+'%';
+  } else $('bar').style.width='0';
+}
+async function poll(){ try{ state=await (await fetch('/api/state')).json(); renderState(); }catch(e){} }
+$('pause').onclick=async()=>{ await fetch('/api/pause?on='+(!state.paused),{method:'POST'}); poll(); };
+$('stop').onclick=async()=>{ await fetch('/api/stop',{method:'POST'}); poll(); };
+(async()=>{ info=await (await fetch('/api/info')).json(); await poll(); render(); setInterval(poll,1000); setInterval(render,10000); })();
+</script>
+</body>
+</html>

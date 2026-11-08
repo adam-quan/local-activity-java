@@ -1,0 +1,2518 @@
+[ {
+  "id" : "sizing",
+  "title" : "Worked sizing example",
+  "guide" : "Worked sizing example",
+  "symptom" : "None while the fleet is at or above its floor. Below the floor the per-worker rate limiters saturate and local activities queue.",
+  "cause" : "Concurrency limit fixes slots per worker, the rate limit fixes the fleet floor, latency fixes the timeouts.",
+  "fix" : "Size slots = connections / max workers, rate = limit / max workers, keep the fleet at or above the floor.",
+  "watch" : "API req/s and in-flight stay under their limits at 8 and 10 workers; at 6 workers the fleet's rate cap drops below demand and local activity latency climbs.",
+  "dashboard" : "la-sizing",
+  "phases" : [ {
+    "name" : "8 workers (sized floor)",
+    "variant" : "baseline",
+    "note" : "Guide inputs at this SCALE. Fleet at the computed minimum. Java: the per-worker rate limit is a token bucket inside the activity.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "sizing",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "10 workers (autoscaler max)",
+    "variant" : "baseline",
+    "note" : "Per-worker caps were sized for 10, so the fleet cap equals the API limit exactly.",
+    "duration_sec" : 90,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "sizing",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "6 workers (below the floor)",
+    "variant" : "broken",
+    "note" : "Fleet rate cap = 6 x per-worker rate < demand: calls wait for tokens (inside the activity, holding a slot).",
+    "duration_sec" : 90,
+    "workers" : 6,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "sizing",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "back to 8 workers",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 60,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "sizing",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "api-slowdown",
+  "title" : "API slowdown holds workflow tasks open",
+  "guide" : "Failure modes: row 1",
+  "symptom" : "Workflow task latency and schedule-to-start rise together; queries (and signals/updates) lag.",
+  "cause" : "API slowdown keeps workflow tasks open; workflow task slots fill.",
+  "fix" : "Tight ScheduleToClose; circuit breaker in the activity; fail fast to a fallback.",
+  "watch" : "Workflow task execution latency, query latency, workflow task heartbeats and end-to-end latency in the broken window; breaker state and 'deferred' results in the fixed window.",
+  "dashboard" : "la-fm-api-slowdown",
+  "phases" : [ {
+    "name" : "normal",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slowdown_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 10000,
+        "schedule_to_close_ms" : 30000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 1000,
+          "coefficient" : 2.0,
+          "max_ms" : 10000,
+          "max_attempts" : 0,
+          "non_retryable" : [ ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.2,
+      "history_sample" : 0.1
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "API 15x slower, patient policy",
+    "variant" : "broken",
+    "note" : "StartToClose 10 s, ScheduleToClose 30 s, unlimited retries, no breaker, no fallback.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 15.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slowdown_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 10000,
+        "schedule_to_close_ms" : 30000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 1000,
+          "coefficient" : 2.0,
+          "max_ms" : 10000,
+          "max_attempts" : 0,
+          "non_retryable" : [ ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.2,
+      "history_sample" : 0.1
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 60,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slowdown_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.2,
+      "history_sample" : 0.1
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "API 15x slower, budgeted + breaker + fallback",
+    "variant" : "fixed",
+    "note" : "ScheduleToClose 2 s, StartToClose 500 ms, breaker opens at 50% failures, workflow returns 'deferred'.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 15.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slowdown_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.2,
+      "history_sample" : 0.1
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "normal",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slowdown_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.2,
+      "history_sample" : 0.1
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "slot-exhaustion",
+  "title" : "Local activity slots exhausted",
+  "guide" : "Failure modes: row 2",
+  "symptom" : "Local activities pile up waiting for a slot.",
+  "cause" : "Local activity slots sized from average latency, not Little's law at p99 and burst.",
+  "fix" : "Re-derive slots from Little's law; set ScheduleToStart so starvation fails visibly (Java supports it for local activities).",
+  "watch" : "Local activity slots available hits 0; end-to-end LA latency (schedule to completion) diverges from execution latency; with ScheduleToStart the overflow fails in 500 ms instead of waiting.",
+  "dashboard" : "la-fm-slot-exhaustion",
+  "phases" : [ {
+    "name" : "1 slot per worker, API 3.5x slower",
+    "variant" : "broken",
+    "note" : "Little's law: ~8 calls/s/worker x ~165 ms = 1.3 concurrent > 1 slot. ScheduleToClose 30 s, no ScheduleToStart: the wait is hidden.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 1,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 3.5,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slots_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 30000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slots_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 500,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "sized slots + ScheduleToStart 500 ms, API 3.5x slower",
+    "variant" : "fixed",
+    "note" : "Slots = API concurrency / max workers; ScheduleToClose 2 s; ScheduleToStart 500 ms.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 3.5,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "slots_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 500,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "wft-heartbeat",
+  "title" : "Slow call triggers workflow task heartbeats",
+  "guide" : "Failure modes: row 3",
+  "symptom" : "History shows extra workflow task completions mid-call; queries wait ~8 s.",
+  "cause" : "A call passed 80% of the workflow task timeout (8 s of 10 s).",
+  "fix" : "Shorten the call or move it to a regular activity.",
+  "watch" : "Workflow task heartbeats per workflow and query latency for the risk-check flow; both drop when risk runs as a regular activity.",
+  "dashboard" : "la-fm-wft-heartbeat",
+  "phases" : [ {
+    "name" : "10 s risk check as a local activity",
+    "variant" : "broken",
+    "note" : "Risk vendor p50 9 s. The SDK heartbeats the workflow task at 8 s (WORKFLOW_TASK_HEARTBEAT_COEFFICIENT = 4/5).",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "background",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    }, {
+      "rate" : 1.0,
+      "policy" : {
+        "name" : "heartbeat_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "risk",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 15000,
+        "schedule_to_close_ms" : 30000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 1.0,
+      "history_sample" : 1.0
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 30,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "background",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "risk check as a regular activity",
+    "variant" : "fixed",
+    "note" : "The workflow task completes right after scheduling the activity; queries are answered immediately.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "background",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    }, {
+      "rate" : 1.0,
+      "policy" : {
+        "name" : "heartbeat_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "risk",
+          "mode" : "regular"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 15000,
+        "schedule_to_close_ms" : 30000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 1.0,
+      "history_sample" : 1.0
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "pod-loss",
+  "title" : "Pod loss: ~10 s latency spike",
+  "guide" : "Failure modes: row 4",
+  "symptom" : "Latency spike of ~10 s after a deploy or pod loss.",
+  "cause" : "Worker died mid-task; the workflow waits out the workflow task timeout before another worker retries it.",
+  "fix" : "Graceful shutdown that drains workflow tasks (WorkerFactory.shutdown() + awaitTermination); keep the default task timeout.",
+  "watch" : "Max end-to-end latency jumps to 10 s+ and workflow task timeouts appear after the crash; the graceful restart shows neither.",
+  "dashboard" : "la-fm-pod-loss",
+  "phases" : [ {
+    "name" : "warm up (10 workers)",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 16,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "podloss",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "receipt",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 3000,
+        "schedule_to_close_ms" : 6000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.0,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "kill -9 worker-a (half the fleet)",
+    "variant" : "broken",
+    "note" : "Runtime.halt(): in-flight workflow tasks on worker-a are abandoned.",
+    "duration_sec" : 75,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 16,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "podloss",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "receipt",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 3000,
+        "schedule_to_close_ms" : 6000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.0,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ {
+      "at_sec" : 15,
+      "kind" : "crash",
+      "target" : "worker-a"
+    } ]
+  }, {
+    "name" : "graceful restart of worker-a",
+    "variant" : "fixed",
+    "note" : "SIGTERM path: WorkerFactory.shutdown() stops polling, awaitTermination(15 s) drains in-flight tasks, then exit.",
+    "duration_sec" : 75,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 16,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "podloss",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "receipt",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 3000,
+        "schedule_to_close_ms" : 6000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.0,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ {
+      "at_sec" : 15,
+      "kind" : "graceful",
+      "target" : "worker-a"
+    } ]
+  } ]
+}, {
+  "id" : "duplicates",
+  "title" : "Duplicate charges after a crash",
+  "guide" : "Failure modes: row 5",
+  "symptom" : "Duplicate charges, emails or records.",
+  "cause" : "Workflow task retry re-ran completed local activities.",
+  "fix" : "Idempotency key per workflow ID and step; dedupe on the API side.",
+  "watch" : "Duplicate side effects at the API after the first crash (no key); idempotent replays instead after the second crash (key).",
+  "dashboard" : "la-fm-duplicates",
+  "phases" : [ {
+    "name" : "crash without idempotency keys",
+    "variant" : "broken",
+    "note" : "",
+    "duration_sec" : 75,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 16,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "dupes_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "receipt",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 3000,
+        "schedule_to_close_ms" : 6000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : false,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.0,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ {
+      "at_sec" : 20,
+      "kind" : "crash",
+      "target" : "worker-a"
+    } ]
+  }, {
+    "name" : "crash with idempotency keys",
+    "variant" : "fixed",
+    "note" : "",
+    "duration_sec" : 75,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 16,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "dupes_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "receipt",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 3000,
+        "schedule_to_close_ms" : 6000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.0,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ {
+      "at_sec" : 20,
+      "kind" : "crash",
+      "target" : "worker-a"
+    } ]
+  } ]
+}, {
+  "id" : "fleet-scale-out",
+  "title" : "429s after the fleet scales out",
+  "guide" : "Failure modes: row 6",
+  "symptom" : "API returns 429 only at some times of day.",
+  "cause" : "Fleet scaled out past the size the per-worker cap assumed.",
+  "fix" : "Size caps for the maximum fleet, or use a shared limiter.",
+  "watch" : "API rejections (rate) appear only when 10 workers run caps sized for 6; caps sized for 10 or a shared limiter keep API req/s at the limit.",
+  "dashboard" : "la-fm-fleet-scale-out",
+  "phases" : [ {
+    "name" : "6 workers, caps sized for 6",
+    "variant" : "baseline",
+    "note" : "Per-worker rate = limit / 6. Fine while the fleet really is 6.",
+    "duration_sec" : 60,
+    "workers" : 6,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 33.333333333333336,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "scaleout",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "peak: 10 workers, caps still sized for 6",
+    "variant" : "broken",
+    "note" : "Fleet cap = 10 x limit/6 = 1.67x the API limit; demand 1.8x base exceeds the API limit.",
+    "duration_sec" : 90,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 33.333333333333336,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 108.0,
+      "policy" : {
+        "name" : "scaleout",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "peak: 10 workers, caps sized for 10",
+    "variant" : "fixed",
+    "note" : "Fleet cap = API limit. Excess demand waits (and some fails fast) in the workers instead of hitting the API.",
+    "duration_sec" : 90,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 108.0,
+      "policy" : {
+        "name" : "scaleout",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "peak: 10 workers, shared limiter",
+    "variant" : "fixed",
+    "note" : "No per-worker cap; every call takes a token from the fleet-wide limiter.",
+    "duration_sec" : 90,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 0.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 200.0,
+    "streams" : [ {
+      "rate" : 108.0,
+      "policy" : {
+        "name" : "scaleout",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : true
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "retry-storm",
+  "title" : "Outage turns into a retry storm",
+  "guide" : "Failure modes: row 7",
+  "symptom" : "API outage multiplies its own load.",
+  "cause" : "Every workflow retrying in process at short backoffs.",
+  "fix" : "MaximumAttempts cap, circuit breaker, non-retryable errors for client faults.",
+  "watch" : "API requests/s (503) during each outage window: dozens of times the normal rate when broken, near zero once the breaker opens.",
+  "dashboard" : "la-fm-retry-storm",
+  "phases" : [ {
+    "name" : "normal (2% invalid cards)",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 0.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.02,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "storm_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 1000,
+        "schedule_to_close_ms" : 10000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 250,
+          "coefficient" : 1.0,
+          "max_ms" : 250,
+          "max_attempts" : 0,
+          "non_retryable" : [ ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "outage: 250 ms constant retries, no cap",
+    "variant" : "broken",
+    "note" : "Unlimited attempts every 250 ms for 10 s, invalid cards retried too, no per-worker rate cap.",
+    "duration_sec" : 75,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 0.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.0,
+      "outage" : true,
+      "invalid_rate" : 0.02,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "storm_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 1000,
+        "schedule_to_close_ms" : 10000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 250,
+          "coefficient" : 1.0,
+          "max_ms" : 250,
+          "max_attempts" : 0,
+          "non_retryable" : [ ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.02,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "storm_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "outage: capped retries + breaker + fallback",
+    "variant" : "fixed",
+    "note" : "4 attempts with backoff inside 2 s, InvalidRequest non-retryable, breaker fails fast, result 'deferred'.",
+    "duration_sec" : 75,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.0,
+      "outage" : true,
+      "invalid_rate" : 0.02,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "storm_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "normal",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.02,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 30.0,
+      "policy" : {
+        "name" : "storm_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : true,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "long-backoff",
+  "title" : "Retry-After above the local retry threshold",
+  "guide" : "Failure modes: row 8",
+  "symptom" : "Many timers and workflow tasks per workflow.",
+  "cause" : "Backoffs or Retry-After above the local retry threshold (Java default: 3 x workflow task timeout = 30 s).",
+  "fix" : "Keep backoffs under the threshold; hand long waits to a regular activity.",
+  "watch" : "Timers and workflow tasks per workflow from sampled histories.",
+  "dashboard" : "la-fm-long-backoff",
+  "phases" : [ {
+    "name" : "429 Retry-After 40 s honoured by the local activity",
+    "variant" : "broken",
+    "note" : "40 s > the 30 s threshold: the SDK records the attempt and starts a durable timer, then a new workflow task.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.5,
+      "retry_after_sec" : 40,
+      "steps" : [ "capture" ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "backoff_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 180000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 0,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "backoff_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 1000,
+        "hand_off_long_wait" : true,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "long waits handed to a regular activity",
+    "variant" : "fixed",
+    "note" : "Retry-After > 1 s fails the local activity fast; the step is retried by a regular activity, server-side.",
+    "duration_sec" : 120,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.5,
+      "retry_after_sec" : 40,
+      "steps" : [ "capture" ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "backoff_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 1000,
+        "hand_off_long_wait" : true,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.5
+    } ],
+    "actions" : [ ]
+  } ]
+}, {
+  "id" : "long-chain",
+  "title" : "One crash re-runs a chain of calls",
+  "guide" : "Failure modes: row 9",
+  "symptom" : "One crash re-runs five calls.",
+  "cause" : "Long chain of local activities in one workflow task, no checkpoint.",
+  "fix" : "Put a regular activity or a durable step between groups; keep chains short.",
+  "watch" : "API re-executions by step after each crash: all five steps re-run without checkpoints, only the last group with them.",
+  "dashboard" : "la-fm-long-chain",
+  "phases" : [ {
+    "name" : "warm up",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 30,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 6.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "chain_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "fraud",
+          "mode" : "local"
+        }, {
+          "name" : "tax",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "ledger",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 2000,
+        "schedule_to_close_ms" : 5000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "5 local calls, no checkpoint; crash worker-a",
+    "variant" : "broken",
+    "note" : "",
+    "duration_sec" : 60,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 6.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "chain_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "fraud",
+          "mode" : "local"
+        }, {
+          "name" : "tax",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "ledger",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 2000,
+        "schedule_to_close_ms" : 5000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ {
+      "at_sec" : 15,
+      "kind" : "crash",
+      "target" : "worker-a"
+    } ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 30,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 6.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "chain_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "fraud",
+          "mode" : "local"
+        }, {
+          "name" : "tax",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "ledger",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 2000,
+        "schedule_to_close_ms" : 5000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 2,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "checkpoint every 2 calls; crash worker-a",
+    "variant" : "fixed",
+    "note" : "A 1 ms timer after every 2 local calls completes the workflow task and persists their markers.",
+    "duration_sec" : 60,
+    "workers" : 10,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 6.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 18.0,
+      "policy" : {
+        "name" : "chain_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "fraud",
+          "mode" : "local"
+        }, {
+          "name" : "tax",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        }, {
+          "name" : "ledger",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 2000,
+        "schedule_to_close_ms" : 5000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : false,
+        "checkpoint_every" : 2,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ {
+      "at_sec" : 15,
+      "kind" : "crash",
+      "target" : "worker-a"
+    } ]
+  } ]
+}, {
+  "id" : "resource-tuner",
+  "title" : "Resource-based tuner admits too many calls",
+  "guide" : "Failure modes: row 10",
+  "symptom" : "Resource-based tuner admits far more concurrent calls than the API allows.",
+  "cause" : "I/O-bound calls don't move JVM CPU or heap, so the supplier keeps issuing slots.",
+  "fix" : "Fixed-size (or custom) slot supplier for local activities.",
+  "watch" : "Local activity slots used and API in-flight vs the concurrency limit; concurrency rejections only with the resource-based tuner.",
+  "dashboard" : "la-fm-resource-tuner",
+  "phases" : [ {
+    "name" : "resource-based LA slots, API 8x slower",
+    "variant" : "broken",
+    "note" : "Demand needs ~47 concurrent calls; the API allows 40 (at SCALE 0.2).",
+    "duration_sec" : 105,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "resource",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 8.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "tuner_broken",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "recover",
+    "variant" : "baseline",
+    "note" : "",
+    "duration_sec" : 45,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 1.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "tuner_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  }, {
+    "name" : "fixed-size LA slots, API 8x slower",
+    "variant" : "fixed",
+    "note" : "Slots cap the fleet below the API limit; overflow fails fast to 'deferred' in the worker.",
+    "duration_sec" : 105,
+    "workers" : 8,
+    "worker" : {
+      "workers" : 0,
+      "la_slots" : 4,
+      "la_rate" : 20.0,
+      "wft_slots" : 200,
+      "tuner" : "fixed",
+      "stop_timeout_ms" : 15000
+    },
+    "faults" : {
+      "latency_mult" : 8.0,
+      "error_rate" : 0.05,
+      "outage" : false,
+      "invalid_rate" : 0.0,
+      "retry_after_rate" : 0.0,
+      "retry_after_sec" : 0,
+      "steps" : [ ]
+    },
+    "limiter" : 0.0,
+    "streams" : [ {
+      "rate" : 60.0,
+      "policy" : {
+        "name" : "tuner_fixed",
+        "steps" : [ {
+          "name" : "authorize",
+          "mode" : "local"
+        }, {
+          "name" : "capture",
+          "mode" : "local"
+        } ],
+        "start_to_close_ms" : 500,
+        "schedule_to_close_ms" : 2000,
+        "schedule_to_start_ms" : 0,
+        "local_retry_threshold_ms" : 0,
+        "retry" : {
+          "initial_ms" : 100,
+          "coefficient" : 2.0,
+          "max_ms" : 500,
+          "max_attempts" : 4,
+          "non_retryable" : [ "InvalidRequest", "CircuitOpen", "RetryAfterTooLong" ]
+        },
+        "idempotency" : true,
+        "circuit_breaker" : false,
+        "fallback" : true,
+        "checkpoint_every" : 0,
+        "max_retry_after_ms" : 0,
+        "hand_off_long_wait" : false,
+        "shared_limiter" : false
+      },
+      "query_rate" : 0.05,
+      "history_sample" : 0.05
+    } ],
+    "actions" : [ ]
+  } ]
+} ]
